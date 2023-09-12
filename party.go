@@ -64,6 +64,7 @@ type IClientPartyBuilder interface {
 	SetQueryParam(map[string]string) ClientPartyBuilder
 	SetBaseAuth(username string, password string) ClientPartyBuilder
 	SetRequestBody(requestBody interface{}) (*ClientPartyBuilder, *error)
+	SetRequestBodyStr(requestBody string) ClientPartyBuilder
 	SetFormData(mapFile map[string]string, mapText map[string]string) (*ClientPartyBuilder, *error)
 	HitClient() (*Response, *error)
 }
@@ -162,6 +163,12 @@ func (c ClientPartyBuilder) SetRequestBody(requestBody interface{}) (*ClientPart
 	}
 
 	return &c, nil
+}
+
+func (c ClientPartyBuilder) SetRequestBodyStr(requestBody string) ClientPartyBuilder {
+	byteRequestBody := []byte(requestBody)
+	c.ClientParty.RequestBody = &byteRequestBody
+	return c
 }
 
 func (c ClientPartyBuilder) SetFormData(mapFile map[string]string, mapText map[string]string) (*ClientPartyBuilder, *error) {
