@@ -81,6 +81,8 @@ func (c ClientPartyBuilder) SetHeader(contentType string, header map[string]stri
 
 	if contentType != "" {
 		header["Content-Type"] = contentType
+	} else {
+		header["Content-Type"] = MIMEJSON
 	}
 
 	c.ClientParty.Header = header
