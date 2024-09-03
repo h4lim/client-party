@@ -1,12 +1,14 @@
-Client Party is simple go http client library 
+Client Party is simple go http client library
 
 ### Client Party support many content type like below
+
 - application/json
 - application/x-www-form-urlencoded
 - form data
 - and more
 
 ### Getting the library
+
 With [Go module](https://github.com/golang/go/wiki/Modules) support, simply add the following import
 
 ```
@@ -29,8 +31,8 @@ First you need to import client-party , one simplest example likes the follow `e
 package main
 
 import (
-    "fmt"
-    cp "github.com/h4lim/client-party"
+	"fmt"
+	cp "github.com/h4lim/client-party"
 )
 
 func main() {

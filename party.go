@@ -60,162 +60,116 @@ type ClientPartyBuilder struct {
 }
 
 type IClientPartyBuilder interface {
-	SetHeader(contentType string, header map[string]string) ClientPartyBuilder
-	SetQueryParam(map[string]string) ClientPartyBuilder
-	SetBaseAuth(username string, password string) ClientPartyBuilder
+	SetHeader(contentType string, header map[string]string) *ClientPartyBuilder
+	SetQueryParam(map[string]string) *ClientPartyBuilder
+	SetBaseAuth(username string, password string) *ClientPartyBuilder
 	SetRequestBody(requestBody interface{}) (*ClientPartyBuilder, *error)
-	SetRequestBodyStr(requestBody string) ClientPartyBuilder
+	SetRequestBodyStr(requestBody string) *ClientPartyBuilder
 	SetFormData(mapFile map[string]string, mapText map[string]string) (*ClientPartyBuilder, *error)
 	HitClient() (*Response, *error)
 }
 
-func NewClientParty(httpMethod string, url string) IClientPartyBuilder {
-
-	return ClientPartyBuilder{ClientParty: ClientParty{
+func NewClientParty(httpMethod string, url string) *ClientPartyBuilder {
+	return &ClientPartyBuilder{ClientParty: ClientParty{
 		HttpMethod: httpMethod,
 		URL:        url,
 	}}
 }
 
-func (c ClientPartyBuilder) SetHeader(contentType string, header map[string]string) ClientPartyBuilder {
-
+func (c *ClientPartyBuilder) SetHeader(contentType string, header map[string]string) *ClientPartyBuilder {
 	if contentType != "" {
 		header["Content-Type"] = contentType
 	} else {
 		header["Content-Type"] = MIMEJSON
 	}
-
 	c.ClientParty.Header = header
-
 	return c
 }
 
-func (c ClientPartyBuilder) SetQueryParam(queryParam map[string]string) ClientPartyBuilder {
-
+func (c *ClientPartyBuilder) SetQueryParam(queryParam map[string]string) *ClientPartyBuilder {
 	c.ClientParty.QueryParam = &queryParam
-
 	return c
 }
 
-func (c ClientPartyBuilder) SetBaseAuth(username string, password string) ClientPartyBuilder {
-
-	mapBaseAuth := make(map[string]string)
-	mapBaseAuth[username] = password
-
-	c.ClientParty.BaseAuth = &mapBaseAuth
-
+func (c *ClientPartyBuilder) SetBaseAuth(username string, password string) *ClientPartyBuilder {
+	c.ClientParty.BaseAuth = &map[string]string{username: password}
 	return c
 }
 
-func (c ClientPartyBuilder) SetRequestBody(requestBody interface{}) (*ClientPartyBuilder, *error) {
-
+func (c *ClientPartyBuilder) SetRequestBody(requestBody interface{}) (*ClientPartyBuilder, *error) {
 	contentType := c.ClientParty.Header["Content-Type"]
 	if contentType == "" {
-
-		byteRequest, err := json.Marshal(requestBody)
-		if err != nil {
-			return nil, &err
-		}
-		c.ClientParty.RequestBody = &byteRequest
+		contentType = MIMEJSON
 	}
 
-	if contentType == MIMEJSON {
+	var byteRequest []byte
+	var err error
 
-		byteRequest, err := json.Marshal(requestBody)
-		if err != nil {
-			return nil, &err
+	switch contentType {
+	case MIMEJSON:
+		byteRequest, err = json.Marshal(requestBody)
+	case MIMEXML, MIMEXML2:
+		byteRequest, err = xml.Marshal(requestBody)
+	case MIMEPOSTForm:
+		// If the request body is a map, convert it to form data
+		if mapData, ok := requestBody.(map[string]string); ok {
+			data := url.Values{}
+			for key, value := range mapData {
+				data.Set(key, value)
+			}
+			byteRequest = []byte(data.Encode())
 		}
-		c.ClientParty.RequestBody = &byteRequest
 	}
 
-	if contentType == MIMEXML || contentType == MIMEXML2 {
-
-		byteRequest, err := xml.Marshal(requestBody)
-		if err != nil {
-			return nil, &err
-		}
-
-		c.ClientParty.RequestBody = &byteRequest
+	if err != nil {
+		return nil, &err
 	}
 
-	if contentType == MIMEPOSTForm {
-
-		byteRequest, err := json.Marshal(requestBody)
-		if err != nil {
-			return nil, &err
-		}
-
-		mapJson := map[string]string{}
-		if err := json.Unmarshal(byteRequest, &mapJson); err != nil {
-			return nil, &err
-		}
-
-		data := url.Values{}
-		for key, value := range mapJson {
-			data.Set(key, value)
-		}
-
-		bytePostForm := []byte(data.Encode())
-		c.ClientParty.RequestBody = &bytePostForm
-
-	}
-
-	if contentType == MIMEMultipartPOSTForm {
-
-	}
-
-	return &c, nil
+	c.ClientParty.RequestBody = &byteRequest
+	return c, nil
 }
 
-func (c ClientPartyBuilder) SetRequestBodyStr(requestBody string) ClientPartyBuilder {
+func (c *ClientPartyBuilder) SetRequestBodyStr(requestBody string) *ClientPartyBuilder {
 	byteRequestBody := []byte(requestBody)
 	c.ClientParty.RequestBody = &byteRequestBody
 	return c
 }
 
-func (c ClientPartyBuilder) SetFormData(mapFile map[string]string, mapText map[string]string) (*ClientPartyBuilder, *error) {
-
+func (c *ClientPartyBuilder) SetFormData(mapFile map[string]string, mapText map[string]string) (*ClientPartyBuilder, *error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
 	for k, v := range mapFile {
-
 		fw, err := writer.CreateFormFile(k, v)
 		if err != nil {
 			return nil, &err
 		}
-
 		file, err := os.Open(v)
 		if err != nil {
 			return nil, &err
 		}
-
+		defer file.Close()
 		if _, err := io.Copy(fw, file); err != nil {
 			return nil, &err
 		}
-
 	}
 
 	for k, v := range mapText {
-
 		fw, err := writer.CreateFormField(k)
 		if err != nil {
 			return nil, &err
 		}
-
 		if _, err = io.Copy(fw, strings.NewReader(v)); err != nil {
 			return nil, &err
 		}
-
 	}
 
+	writer.Close() // Close the writer to finalize the form data
 	c.ClientParty.Writer = writer
-
-	return &c, nil
+	return c, nil
 }
 
-func (c ClientPartyBuilder) HitClient() (*Response, *error) {
-
+func (c *ClientPartyBuilder) HitClient() (*Response, *error) {
 	var ioRequest io.Reader = nil
 	if c.ClientParty.RequestBody != nil {
 		ioRequest = bytes.NewReader(*c.ClientParty.RequestBody)
@@ -235,8 +189,8 @@ func (c ClientPartyBuilder) HitClient() (*Response, *error) {
 	}
 
 	for k, v := range c.ClientParty.Header {
-		if c.ClientParty.Writer != nil {
-			request.Header.Set("Content-Type", c.ClientParty.Writer.FormDataContentType())
+		if c.ClientParty.Writer != nil && k == "Content-Type" {
+			request.Header.Set(k, c.ClientParty.Writer.FormDataContentType())
 		} else {
 			request.Header.Set(k, v)
 		}
@@ -252,6 +206,7 @@ func (c ClientPartyBuilder) HitClient() (*Response, *error) {
 	if err != nil {
 		return nil, &err
 	}
+	defer response.Body.Close() // Ensure the body is closed
 
 	byteResult, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -264,5 +219,4 @@ func (c ClientPartyBuilder) HitClient() (*Response, *error) {
 	}
 
 	return &clientResponse, nil
-
 }
