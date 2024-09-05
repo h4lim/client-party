@@ -51,8 +51,9 @@ type ClientParty struct {
 }
 
 type Response struct {
-	HttpCode     int
-	ResponseBody string
+	HttpCode       int
+	ResponseBody   string
+	ResponseHeader http.Header
 }
 
 type ClientPartyBuilder struct {
@@ -206,7 +207,7 @@ func (c *ClientPartyBuilder) HitClient() (*Response, *error) {
 	if err != nil {
 		return nil, &err
 	}
-	defer response.Body.Close() // Ensure the body is closed
+	defer response.Body.Close()
 
 	byteResult, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -214,8 +215,9 @@ func (c *ClientPartyBuilder) HitClient() (*Response, *error) {
 	}
 
 	clientResponse := Response{
-		HttpCode:     response.StatusCode,
-		ResponseBody: string(byteResult),
+		HttpCode:       response.StatusCode,
+		ResponseHeader: response.Header,
+		ResponseBody:   string(byteResult),
 	}
 
 	return &clientResponse, nil
