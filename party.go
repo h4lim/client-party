@@ -164,9 +164,14 @@ func (c *ClientPartyBuilder) SetFormData(mapFile map[string]string, mapText map[
 			return nil, &err
 		}
 	}
+	if err := writer.Close(); err != nil {
+		return nil, &err
+	}
 
-	writer.Close() // Close the writer to finalize the form data
+	byteData := body.Bytes()
+	c.ClientParty.RequestBody = &byteData
 	c.ClientParty.Writer = writer
+	
 	return c, nil
 }
 
